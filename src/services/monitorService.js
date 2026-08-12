@@ -158,10 +158,43 @@ async function deleteMonitor(id) {
     return result.rows[0] || null;
 }
 
+async function getDueMonitors() {
+    const result = await pool.query(
+        `
+        SELECT
+            m.id,
+            m.name,
+            m.url,
+            m.interval_seconds,
+            m.expected_status,
+            m.is_active,
+            m.created_at
+        FROM monitors m
+        LEFT JOIN LATERAL (
+            SELECT checked_at
+            FROM checks
+            WHERE monitor_id = m.id
+            ORDER BY checked_at DESC
+            LIMIT 1
+        ) c ON true
+        WHERE m.is_active = true
+          AND (
+              c.checked_at IS NULL
+              OR c.checked_at <= now() -
+                  (m.interval_seconds * INTERVAL '1 second')
+          )
+        ORDER BY m.id ASC
+        `,
+    );
+
+    return result.rows;
+}
+
 export {
     createMonitor,
     getMonitors,
     getMonitorById,
     updateMonitor,
     deleteMonitor,
+    getDueMonitors,
 };

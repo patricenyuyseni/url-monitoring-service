@@ -1,6 +1,7 @@
 import app from "./app.js";
 import { config } from "./config.js";
 import { pool } from "./db.js";
+import { startScheduler } from "./scheduler/monitorScheduler.js";
 
 async function startServer() {
     try {
@@ -10,6 +11,8 @@ async function startServer() {
 
         const server = app.listen(config.PORT, () => {
             console.log(`Server running on port ${config.PORT}`);
+
+            startScheduler();
         });
 
         server.on("error", (error) => {
