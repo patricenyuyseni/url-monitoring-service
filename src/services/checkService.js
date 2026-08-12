@@ -82,7 +82,69 @@ async function getChecks(monitorId, { after, limit }) {
     };
 }
 
+async function streamChecksCsv(monitorId, res) {
+    const client = await pool.connect();
+
+    try {
+        const result = await client.query(
+            `
+            SELECT
+                id,
+                monitor_id,
+                checked_at,
+                ok,
+                status_code,
+                latency_ms,
+                error
+            FROM checks
+            WHERE monitor_id = $1
+            ORDER BY id ASC
+            `,
+            [monitorId],
+        );
+
+        res.write(
+            "id,monitor_id,checked_at,ok,status_code,latency_ms,error\n",
+        );
+
+        for (const row of result.rows) {
+            const values = [
+                row.id,
+                row.monitor_id,
+                row.checked_at?.toISOString() ?? "",
+                row.ok,
+                row.status_code ?? "",
+                row.latency_ms ?? "",
+                csvEscape(row.error ?? ""),
+            ];
+
+            res.write(`${values.join(",")}\n`);
+        }
+
+        res.end();
+    } catch (error) {
+        res.destroy(error);
+    } finally {
+        client.release();
+    }
+}
+
+function csvEscape(value) {
+    const stringValue = String(value);
+
+    if (
+        stringValue.includes(",") ||
+        stringValue.includes('"') ||
+        stringValue.includes("\n")
+    ) {
+        return `"${stringValue.replaceAll('"', '""')}"`;
+    }
+
+    return stringValue;
+}
+
 export {
     createCheck,
     getChecks,
+    streamChecksCsv,
 };

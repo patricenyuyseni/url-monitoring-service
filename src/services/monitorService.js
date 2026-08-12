@@ -32,6 +32,7 @@ async function createMonitor(data) {
 
 async function getMonitors({ after, limit }) {
     const values = [];
+
     let query = `
         SELECT
             id,
@@ -190,6 +191,57 @@ async function getDueMonitors() {
     return result.rows;
 }
 
+async function getPublicStatus() {
+    const result = await pool.query(
+        `
+        SELECT
+            m.id,
+            m.name,
+            m.url,
+            m.expected_status,
+            c.checked_at,
+            c.ok,
+            c.status_code,
+            c.latency_ms,
+            c.error,
+            i.id AS incident_id,
+            i.started_at AS incident_started_at,
+            i.cause AS incident_cause
+        FROM monitors m
+
+        LEFT JOIN LATERAL (
+            SELECT
+                checked_at,
+                ok,
+                status_code,
+                latency_ms,
+                error
+            FROM checks
+            WHERE monitor_id = m.id
+            ORDER BY checked_at DESC
+            LIMIT 1
+        ) c ON true
+
+        LEFT JOIN LATERAL (
+            SELECT
+                id,
+                started_at,
+                cause
+            FROM incidents
+            WHERE monitor_id = m.id
+              AND resolved_at IS NULL
+            ORDER BY started_at DESC
+            LIMIT 1
+        ) i ON true
+
+        WHERE m.is_active = true
+        ORDER BY m.id ASC
+        `,
+    );
+
+    return result.rows;
+}
+
 export {
     createMonitor,
     getMonitors,
@@ -197,4 +249,5 @@ export {
     updateMonitor,
     deleteMonitor,
     getDueMonitors,
+    getPublicStatus,
 };

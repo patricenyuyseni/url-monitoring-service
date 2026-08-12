@@ -97,7 +97,92 @@ async function resolveIncident(monitorId) {
     }
 }
 
+async function getIncidents({ after, limit }) {
+    const values = [];
+    let query = `
+        SELECT
+            id,
+            monitor_id,
+            started_at,
+            resolved_at,
+            cause
+        FROM incidents
+    `;
+
+    if (after !== undefined) {
+        values.push(after);
+        query += ` WHERE id > $${values.length}`;
+    }
+
+    values.push(limit);
+
+    query += `
+        ORDER BY id ASC
+        LIMIT $${values.length}
+    `;
+
+    const result = await pool.query(query, values);
+
+    const rows = result.rows;
+
+    const nextCursor =
+        rows.length === limit
+            ? rows[rows.length - 1].id
+            : null;
+
+    return {
+        data: rows,
+        next_cursor: nextCursor,
+    };
+}
+
+async function getIncidentsByMonitor(
+    monitorId,
+    { after, limit },
+) {
+    const values = [monitorId];
+
+    let query = `
+        SELECT
+            id,
+            monitor_id,
+            started_at,
+            resolved_at,
+            cause
+        FROM incidents
+        WHERE monitor_id = $1
+    `;
+
+    if (after !== undefined) {
+        values.push(after);
+        query += ` AND id > $${values.length}`;
+    }
+
+    values.push(limit);
+
+    query += `
+        ORDER BY id ASC
+        LIMIT $${values.length}
+    `;
+
+    const result = await pool.query(query, values);
+
+    const rows = result.rows;
+
+    const nextCursor =
+        rows.length === limit
+            ? rows[rows.length - 1].id
+            : null;
+
+    return {
+        data: rows,
+        next_cursor: nextCursor,
+    };
+}
+
 export {
     openIncident,
     resolveIncident,
+    getIncidents,
+    getIncidentsByMonitor,
 };

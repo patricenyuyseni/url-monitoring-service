@@ -62,16 +62,28 @@ const updateMonitorSchema = z
 
         is_active: z.boolean().optional(),
     })
-    .refine((data) => Object.keys(data).length > 0, {
-        message: "At least one field must be provided",
-    });
+    .refine(
+        (data) => Object.keys(data).length > 0,
+        {
+            message: "At least one field must be provided",
+        },
+    );
 
 const monitorListSchema = z.object({
     after: z.coerce.number().int().positive().optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(10),
+
+    limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(10),
 });
 
-const monitorIdSchema = z.coerce.number().int().positive();
+const monitorIdSchema = z.coerce
+    .number()
+    .int()
+    .positive();
 
 export {
     createMonitorSchema,

@@ -1,6 +1,8 @@
 import express from "express";
 import monitorRoutes from "./routes/monitorRoutes.js";
 import checkRoutes from "./routes/checkRoutes.js";
+import incidentRoutes from "./routes/incidentRoutes.js";
+import statusRoutes from "./routes/statusRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
@@ -15,6 +17,8 @@ app.get("/health", (req, res) => {
 
 app.use("/monitors", monitorRoutes);
 app.use("/monitors", checkRoutes);
+app.use("/incidents", incidentRoutes);
+app.use("/status", statusRoutes);
 
 app.use(errorHandler);
 
