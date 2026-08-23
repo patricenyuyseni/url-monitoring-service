@@ -5,6 +5,7 @@ import { pool } from "../src/db.js";
 
 let server;
 let baseUrl;
+const createdMonitorIds = [];
 
 before(async () => {
     server = app.listen(0);
@@ -18,6 +19,34 @@ before(async () => {
 });
 
 after(async () => {
+    // Clean up monitors created by this test file.
+    // Delete dependent records first.
+    if (createdMonitorIds.length > 0) {
+        await pool.query(
+            `
+            DELETE FROM incidents
+            WHERE monitor_id = ANY($1::int[])
+            `,
+            [createdMonitorIds],
+        );
+
+        await pool.query(
+            `
+            DELETE FROM checks
+            WHERE monitor_id = ANY($1::int[])
+            `,
+            [createdMonitorIds],
+        );
+
+        await pool.query(
+            `
+            DELETE FROM monitors
+            WHERE id = ANY($1::int[])
+            `,
+            [createdMonitorIds],
+        );
+    }
+
     await new Promise((resolve, reject) => {
         server.close((error) => {
             if (error) {
@@ -30,6 +59,29 @@ after(async () => {
 
     await pool.end();
 });
+
+async function createTestMonitor(name) {
+    const response = await fetch(`${baseUrl}/monitors`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            name,
+            url: "https://example.com",
+            interval_seconds: 60,
+            expected_status: 200,
+        }),
+    });
+
+    assert.equal(response.status, 201);
+
+    const body = await response.json();
+
+    createdMonitorIds.push(body.id);
+
+    return body;
+}
 
 test("GET /health returns 200", async () => {
     const response = await fetch(`${baseUrl}/health`);
@@ -44,28 +96,13 @@ test("GET /health returns 200", async () => {
 });
 
 test("POST /monitors creates a monitor", async () => {
-    const response = await fetch(`${baseUrl}/monitors`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            name: "Test Monitor",
-            url: "https://example.com",
-            interval_seconds: 60,
-            expected_status: 200,
-        }),
-    });
+    const monitor = await createTestMonitor("Test Monitor");
 
-    assert.equal(response.status, 201);
-
-    const body = await response.json();
-
-    assert.equal(body.name, "Test Monitor");
-    assert.equal(body.url, "https://example.com");
-    assert.equal(body.interval_seconds, 60);
-    assert.equal(body.expected_status, 200);
-    assert.equal(body.is_active, true);
+    assert.equal(monitor.name, "Test Monitor");
+    assert.equal(monitor.url, "https://example.com");
+    assert.equal(monitor.interval_seconds, 60);
+    assert.equal(monitor.expected_status, 200);
+    assert.equal(monitor.is_active, true);
 });
 
 test("POST /monitors rejects invalid URL", async () => {
@@ -101,23 +138,7 @@ test("GET /monitors returns paginated monitors", async () => {
 });
 
 test("GET /monitors/:id returns a monitor", async () => {
-    const createResponse = await fetch(
-        `${baseUrl}/monitors`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: "Get By ID Test",
-                url: "https://example.com",
-                interval_seconds: 60,
-                expected_status: 200,
-            }),
-        },
-    );
-
-    const created = await createResponse.json();
+    const created = await createTestMonitor("Get By ID Test");
 
     const response = await fetch(
         `${baseUrl}/monitors/${created.id}`,
@@ -144,23 +165,7 @@ test("GET /monitors/:id returns 404 for missing monitor", async () => {
 });
 
 test("PATCH /monitors/:id updates a monitor", async () => {
-    const createResponse = await fetch(
-        `${baseUrl}/monitors`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: "Update Test",
-                url: "https://example.com",
-                interval_seconds: 60,
-                expected_status: 200,
-            }),
-        },
-    );
-
-    const created = await createResponse.json();
+    const created = await createTestMonitor("Update Test");
 
     const response = await fetch(
         `${baseUrl}/monitors/${created.id}`,
@@ -181,29 +186,15 @@ test("PATCH /monitors/:id updates a monitor", async () => {
         `${baseUrl}/monitors/${created.id}`,
     );
 
+    assert.equal(getResponse.status, 200);
+
     const updated = await getResponse.json();
 
     assert.equal(updated.name, "Updated Monitor");
 });
 
 test("DELETE /monitors/:id deletes a monitor", async () => {
-    const createResponse = await fetch(
-        `${baseUrl}/monitors`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: "Delete Test",
-                url: "https://example.com",
-                interval_seconds: 60,
-                expected_status: 200,
-            }),
-        },
-    );
-
-    const created = await createResponse.json();
+    const created = await createTestMonitor("Delete Test");
 
     const response = await fetch(
         `${baseUrl}/monitors/${created.id}`,
@@ -219,4 +210,11 @@ test("DELETE /monitors/:id deletes a monitor", async () => {
     );
 
     assert.equal(getResponse.status, 404);
+
+    // It was already deleted, so don't try to delete it again.
+    const index = createdMonitorIds.indexOf(created.id);
+
+    if (index !== -1) {
+        createdMonitorIds.splice(index, 1);
+    }
 });

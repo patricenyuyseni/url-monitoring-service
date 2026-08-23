@@ -40,15 +40,17 @@ before(async () => {
 });
 
 after(async () => {
-    await pool.query(
-        "DELETE FROM checks WHERE monitor_id = $1",
-        [monitorId],
-    );
+    if (monitorId) {
+        await pool.query(
+            "DELETE FROM checks WHERE monitor_id = $1",
+            [monitorId],
+        );
 
-    await pool.query(
-        "DELETE FROM monitors WHERE id = $1",
-        [monitorId],
-    );
+        await pool.query(
+            "DELETE FROM monitors WHERE id = $1",
+            [monitorId],
+        );
+    }
 
     await new Promise((resolve, reject) => {
         server.close((error) => {
@@ -118,11 +120,6 @@ test("GET /monitors/:monitorId/checks returns created checks", async () => {
     assert.equal(check.ok, true);
     assert.equal(check.status_code, 200);
     assert.equal(check.latency_ms, 250);
-
-    await pool.query(
-        "DELETE FROM checks WHERE id = $1",
-        [checkId],
-    );
 });
 
 test("GET /monitors/:monitorId/checks supports pagination", async () => {
@@ -210,10 +207,5 @@ test("checks can represent a failed check", async () => {
     assert.equal(
         check.error,
         "Expected status 200, received 500",
-    );
-
-    await pool.query(
-        "DELETE FROM checks WHERE id = $1",
-        [checkId],
     );
 });

@@ -40,20 +40,22 @@ before(async () => {
 });
 
 after(async () => {
-    await pool.query(
-        "DELETE FROM incidents WHERE monitor_id = $1",
-        [monitorId],
-    );
+    if (monitorId) {
+        await pool.query(
+            "DELETE FROM incidents WHERE monitor_id = $1",
+            [monitorId],
+        );
 
-    await pool.query(
-        "DELETE FROM checks WHERE monitor_id = $1",
-        [monitorId],
-    );
+        await pool.query(
+            "DELETE FROM checks WHERE monitor_id = $1",
+            [monitorId],
+        );
 
-    await pool.query(
-        "DELETE FROM monitors WHERE id = $1",
-        [monitorId],
-    );
+        await pool.query(
+            "DELETE FROM monitors WHERE id = $1",
+            [monitorId],
+        );
+    }
 
     await new Promise((resolve, reject) => {
         server.close((error) => {
