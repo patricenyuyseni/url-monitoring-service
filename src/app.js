@@ -1,4 +1,8 @@
 import express from "express";
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import monitorRoutes from "./routes/monitorRoutes.js";
 import checkRoutes from "./routes/checkRoutes.js";
@@ -10,6 +14,13 @@ import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const swaggerDocument = YAML.load(
+    path.join(__dirname, "../openapi.yaml"),
+);
+
 app.use(express.json());
 
 app.get("/health", (req, res) => {
@@ -17,6 +28,12 @@ app.get("/health", (req, res) => {
         status: "ok",
     });
 });
+
+app.use(
+    "/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerDocument),
+);
 
 app.use("/monitors", monitorRoutes);
 app.use("/monitors", checkRoutes);

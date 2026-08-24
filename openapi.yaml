@@ -1,0 +1,376 @@
+
+openapi: 3.0.3
+
+info:
+  title: URL Monitoring Service API
+  description: API for monitoring URLs, recording checks, tracking incidents, calculating uptime, and exposing public service status.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: Health
+  - name: Monitors
+  - name: Checks
+  - name: Incidents
+  - name: Uptime
+  - name: Status
+
+paths:
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /monitors:
+    get:
+      tags:
+        - Monitors
+      summary: List monitors
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated list of monitors
+
+    post:
+      tags:
+        - Monitors
+      summary: Create a monitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MonitorInput"
+            example:
+              name: Example Website
+              url: https://example.com
+              interval_seconds: 60
+              expected_status: 200
+      responses:
+        "201":
+          description: Monitor created
+        "400":
+          description: Validation error
+
+  /monitors/{id}:
+    get:
+      tags:
+        - Monitors
+      summary: Get a monitor
+      parameters:
+        - $ref: "#/components/parameters/MonitorId"
+      responses:
+        "200":
+          description: Monitor found
+        "404":
+          description: Monitor not found
+
+    patch:
+      tags:
+        - Monitors
+      summary: Update a monitor
+      parameters:
+        - $ref: "#/components/parameters/MonitorId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MonitorUpdate"
+      responses:
+        "204":
+          description: Monitor updated
+        "400":
+          description: Validation error
+        "404":
+          description: Monitor not found
+
+    delete:
+      tags:
+        - Monitors
+      summary: Delete a monitor
+      parameters:
+        - $ref: "#/components/parameters/MonitorId"
+      responses:
+        "204":
+          description: Monitor deleted
+        "404":
+          description: Monitor not found
+
+  /monitors/{monitorId}/checks:
+    get:
+      tags:
+        - Checks
+      summary: Get monitor checks
+      parameters:
+        - $ref: "#/components/parameters/MonitorIdPath"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated list of checks
+        "404":
+          description: Monitor not found
+
+  /monitors/{monitorId}/checks.csv:
+    get:
+      tags:
+        - Checks
+      summary: Export monitor checks as CSV
+      parameters:
+        - $ref: "#/components/parameters/MonitorIdPath"
+      responses:
+        "200":
+          description: CSV export
+          content:
+            text/csv:
+              schema:
+                type: string
+        "404":
+          description: Monitor not found
+
+  /monitors/{monitorId}/incidents:
+    get:
+      tags:
+        - Incidents
+      summary: Get incidents for a monitor
+      parameters:
+        - $ref: "#/components/parameters/MonitorIdPath"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated list of incidents
+        "404":
+          description: Monitor not found
+
+  /monitors/{monitorId}/uptime:
+    get:
+      tags:
+        - Uptime
+      summary: Get monitor uptime statistics
+      parameters:
+        - $ref: "#/components/parameters/MonitorIdPath"
+        - name: window
+          in: query
+          required: false
+          description: Time window for uptime calculation
+          schema:
+            type: string
+            pattern: '^[0-9]+(m|h|d)$'
+            default: 24h
+            example: 24h
+      responses:
+        "200":
+          description: Uptime statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Uptime"
+        "400":
+          description: Invalid window
+        "404":
+          description: Monitor not found
+
+  /incidents:
+    get:
+      tags:
+        - Incidents
+      summary: List incidents
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated list of incidents
+
+  /incidents/monitors/{id}:
+    get:
+      tags:
+        - Incidents
+      summary: List incidents for a monitor
+      parameters:
+        - $ref: "#/components/parameters/MonitorId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated list of incidents
+        "404":
+          description: Monitor not found
+
+  /status:
+    get:
+      tags:
+        - Status
+      summary: Get public monitoring status
+      responses:
+        "200":
+          description: Current public status of all monitors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicStatus"
+
+components:
+
+  parameters:
+
+    MonitorId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 5
+
+    MonitorIdPath:
+      name: monitorId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      example: 5
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+
+    MonitorInput:
+      type: object
+      required:
+        - name
+        - url
+        - interval_seconds
+        - expected_status
+      properties:
+        name:
+          type: string
+          example: Example Website
+        url:
+          type: string
+          format: uri
+          example: https://example.com
+        interval_seconds:
+          type: integer
+          minimum: 5
+          example: 60
+        expected_status:
+          type: integer
+          minimum: 100
+          maximum: 599
+          example: 200
+
+    MonitorUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        interval_seconds:
+          type: integer
+          minimum: 5
+        expected_status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        is_active:
+          type: boolean
+
+    Uptime:
+      type: object
+      properties:
+        monitor_id:
+          type: integer
+          example: 5
+        window:
+          type: string
+          example: 24h
+        total_checks:
+          type: integer
+          example: 109
+        successful_checks:
+          type: integer
+          example: 109
+        uptime_percentage:
+          type: number
+          format: double
+          example: 100
+        average_latency_ms:
+          type: integer
+          example: 168
+        p95_latency_ms:
+          type: integer
+          example: 296
+
+    PublicStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - operational
+            - degraded
+          example: operational
+        monitors:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              url:
+                type: string
+              state:
+                type: string
+                enum:
+                  - unknown
+                  - up
+                  - down
+              last_check:
+                nullable: true
+                type: object
+              incident:
+                nullable: true
+                type: object
+
