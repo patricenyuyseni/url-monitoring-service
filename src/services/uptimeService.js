@@ -1,5 +1,7 @@
 import { pool } from "../db.js";
 
+// show
+
 async function getMonitorUptime(monitorId, window) {
     const result = await pool.query(
         `
