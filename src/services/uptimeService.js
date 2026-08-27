@@ -35,6 +35,7 @@ async function getMonitorUptime(monitorId, window) {
             ) AS p95_latency_ms
 
         FROM checks
+
         WHERE monitor_id = $1
           AND checked_at >= now() - $2::interval
         `,

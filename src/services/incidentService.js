@@ -114,7 +114,8 @@ async function getIncidents({ after, limit }) {
         query += ` WHERE id > $${values.length}`;
     }
 
-    values.push(limit);
+    // Fetch one extra row to determine whether another page exists.
+    values.push(limit + 1);
 
     query += `
         ORDER BY id ASC
@@ -123,12 +124,12 @@ async function getIncidents({ after, limit }) {
 
     const result = await pool.query(query, values);
 
-    const rows = result.rows;
+    const hasMore = result.rows.length > limit;
+    const rows = result.rows.slice(0, limit);
 
-    const nextCursor =
-        rows.length === limit
-            ? rows[rows.length - 1].id
-            : null;
+    const nextCursor = hasMore
+        ? rows[rows.length - 1].id
+        : null;
 
     return {
         data: rows,
@@ -158,7 +159,8 @@ async function getIncidentsByMonitor(
         query += ` AND id > $${values.length}`;
     }
 
-    values.push(limit);
+    // Fetch one extra row to determine whether another page exists.
+    values.push(limit + 1);
 
     query += `
         ORDER BY id ASC
@@ -167,12 +169,12 @@ async function getIncidentsByMonitor(
 
     const result = await pool.query(query, values);
 
-    const rows = result.rows;
+    const hasMore = result.rows.length > limit;
+    const rows = result.rows.slice(0, limit);
 
-    const nextCursor =
-        rows.length === limit
-            ? rows[rows.length - 1].id
-            : null;
+    const nextCursor = hasMore
+        ? rows[rows.length - 1].id
+        : null;
 
     return {
         data: rows,
