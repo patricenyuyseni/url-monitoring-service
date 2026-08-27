@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 const httpUrlSchema = z
@@ -6,6 +7,10 @@ const httpUrlSchema = z
     .url()
     .refine(
         (value) => {
+            if (!URL.canParse(value)) {
+                return false;
+            }
+
             const url = new URL(value);
 
             return (
@@ -42,7 +47,7 @@ const createMonitorSchema = z.object({
 
 const updateMonitorSchema = z
     .object({
-        name: z.string().trim().min(1).max(120).optional(),
+        name: z.string().trim().min(1).max(120),
 
         url: httpUrlSchema.optional(),
 
@@ -70,7 +75,11 @@ const updateMonitorSchema = z
     );
 
 const monitorListSchema = z.object({
-    after: z.coerce.number().int().positive().optional(),
+    after: z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional(),
 
     limit: z.coerce
         .number()
@@ -91,3 +100,4 @@ export {
     monitorListSchema,
     monitorIdSchema,
 };
+
