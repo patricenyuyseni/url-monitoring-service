@@ -1,0 +1,22 @@
+import { z } from "zod";
+
+const checkListSchema = z.object({
+    after: z.coerce.number().int().positive().optional(),
+
+    limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(20),
+});
+
+const monitorIdSchema = z.coerce
+    .number()
+    .int()
+    .positive();
+
+export {
+    checkListSchema,
+    monitorIdSchema,
+};
